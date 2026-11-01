@@ -11,33 +11,39 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
-import com.register.api.dto.response.TokenResponse;
+import com.register.api.dto.response.AuthTokenResponse;
 import com.register.api.model.User;
 
 @Service
 public class JwtService {
 
-  private final JwtEncoder encoder;
-  private final long expirationMinutes;
-  public JwtService(JwtEncoder encoder,
-    @Value("${app.jwt.expiration-minutes}")  long expirationMinutes) {
-    this.encoder = encoder;
-    this.expirationMinutes = expirationMinutes;
-  }
+    private final JwtEncoder encoder;
+    private final String issuer;
+    private final long expirationMinutes;
 
-  public TokenResponse generate(User user) {
-      Instant now = Instant.now();
-      JwtClaimsSet claims = JwtClaimsSet.builder()
-        .issuer("user-registration-app")
-        .issuedAt(now)
-        .expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))
-        .subject(user.getId())
-        .claim("email", user.getEmail())
-        .claim("roles", user.getRoles())
-        .build();
-    JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-    String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
-    return new TokenResponse(token, "Bearer", expirationMinutes * 60);
-  }
-  
+    public JwtService(JwtEncoder encoder,
+                      @Value("${app.jwt.issuer}") String issuer,
+                      @Value("${app.jwt.expiration-minutes}") long expirationMinutes) {
+        this.encoder = encoder;
+        this.issuer = issuer;
+        this.expirationMinutes = expirationMinutes;
+    }
+
+    public AuthTokenResponse generate(User user) {
+        Instant now = Instant.now();
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer(issuer)
+                .issuedAt(now)
+                .expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))
+                .subject(user.getId())
+                .claim("email", user.getEmail())
+                .claim("roles", user.getRoles())
+                .build();
+
+        JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
+        String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
+
+        return new AuthTokenResponse(token, "Bearer", expirationMinutes * 60);
+    }
 }
